@@ -4,5 +4,11 @@ version = "0.1.0"
 authors = ["Alex Sayers <alex.sayers@gmail.com>"]
 
 [dependencies]
-mcmf = "1.1"
+clap = "2.30"
+env_logger = "0.5"
 itertools = "0.7"
+log = "0.4"
+mcmf = "1.1"
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
