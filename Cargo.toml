@@ -4,3 +4,5 @@ version = "0.1.0"
 authors = ["Alex Sayers <alex.sayers@gmail.com>"]
 
 [dependencies]
+mcmf = "1.1"
+itertools = "0.7"
