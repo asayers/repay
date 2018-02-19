@@ -6,7 +6,6 @@ authors = ["Alex Sayers <alex.sayers@gmail.com>"]
 [dependencies]
 clap = "2.30"
 env_logger = "0.5"
-itertools = "0.7"
 log = "0.4"
 mcmf = "1.1"
 serde = "1.0"
