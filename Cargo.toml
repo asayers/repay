@@ -1,6 +1,6 @@
 [package]
-name = "debtor"
-version = "0.1.0"
+name = "repay"
+version = "1.0.0"
 authors = ["Alex Sayers <alex.sayers@gmail.com>"]
 
 [dependencies]
