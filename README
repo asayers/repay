@@ -29,11 +29,16 @@ square:
 As you can see, these transations are newline-delimited JSON objects.  The
 input transactions may contain additional fields which repay will ignore:
 
-    {"date":"2018-02-17","from":"Bill","to":"Fred","amt":7200,"reason":"Lunch"}
+    {"date":"2018-02-17","from":"Bill","to":"Fred","amt":7200,"reason":"Paid for lunch"}
     {"date":"2018-02-19","from":"Andy","to":"Alex","amt":7300,"reason":"Bet on the football"}
     {"date":"2018-02-19","from":"Fred","to":"Mike","amt":7800,"reason":"Undisclosed"}
+    {"date":"2018-02-20","from":"Bill","to":"Fred","amt":9300,"reason":"Paid delivery man"}
 
 The output will still only contain "from", "to", and "amt", however.
+
+Note that all amounts must be integers - "amt: 2.50" will cause an error - so
+you'll probably want to record all amounts in a small currency like cents or
+pence or yen.
 
 
 Licence
