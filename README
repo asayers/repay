@@ -1,54 +1,60 @@
-                     ====================================
-                     repay - compute efficient repayments
-                     ====================================
+                         ===========================
+                         repay: efficient repayments
+                         ===========================
 
-Repay is a simple tool which computes the most efficient way for everyone to
-repay their debts.
+    Repay is a simple tool which computes the most efficient way for everyone
+    to repay their debts.  You feed it a list of historical transactions:
 
-You feed it a list of historical transactions (ie. a ledger):
+        {"from":"Bill","to":"Fred","amt":7200}
+        {"from":"Andy","to":"Alex","amt":7300}
+        {"from":"Fred","to":"Mike","amt":7800}
+        {"from":"Fred","to":"Mike","amt":4500}
+        {"from":"Mike","to":"Alex","amt":5600}
+        {"from":"Bill","to":"Fred","amt":9300}
+        {"from":"Mike","to":"Andy","amt":6100}
+        {"from":"Alex","to":"Bill","amt":2400}
+        {"from":"Mike","to":"Bill","amt":6400}
+        {"from":"Bill","to":"Andy","amt":9300}
 
-    {"from":"Bill","to":"Fred","amt":7200}
-    {"from":"Andy","to":"Alex","amt":7300}
-    {"from":"Fred","to":"Mike","amt":7800}
-    {"from":"Fred","to":"Mike","amt":4500}
-    {"from":"Mike","to":"Alex","amt":5600}
-    {"from":"Bill","to":"Fred","amt":9300}
-    {"from":"Mike","to":"Andy","amt":6100}
-    {"from":"Alex","to":"Bill","amt":2400}
-    {"from":"Mike","to":"Bill","amt":6400}
-    {"from":"Bill","to":"Andy","amt":9300}
+    And it spits out a minimal list of transactions which will make everyone
+    square:
 
-And it spits out a minimal list of transactions which will make everyone
-square:
+        {"from":"Fred","to":"Mike","amt":4200}
+        {"from":"Andy","to":"Bill","amt":8100}
+        {"from":"Alex","to":"Mike","amt":1600}
+        {"from":"Alex","to":"Bill","amt":8900}
 
-    {"from":"Fred","to":"Mike","amt":4200}
-    {"from":"Andy","to":"Bill","amt":8100}
-    {"from":"Alex","to":"Mike","amt":1600}
-    {"from":"Alex","to":"Bill","amt":8900}
+USAGE
 
-As you can see, these transations are newline-delimited JSON objects.  The
-input transactions may contain additional fields which repay will ignore:
+    repay [-x] <PATH>
 
-    {"date":"2018-02-17","from":"Bill","to":"Fred","amt":7200,"reason":"Paid for lunch"}
-    {"date":"2018-02-19","from":"Andy","to":"Alex","amt":7300,"reason":"Bet on the football"}
-    {"date":"2018-02-19","from":"Fred","to":"Mike","amt":7800,"reason":"Undisclosed"}
-    {"date":"2018-02-20","from":"Bill","to":"Fred","amt":9300,"reason":"Paid delivery man"}
+        -x        Guarantees a minimal solution (see "Exact Mode", below)
+        <PATH>    The ledger containing historical transactions
 
-The output will still only contain "from", "to", and "amt", however.
+INPUT FORMAT
 
-Note that all amounts must be integers - "amt: 2.50" will cause an error - so
-you'll probably want to record all amounts in a small currency like cents or
-pence or yen.
+    As you can see, transations are newline-delimited JSON objects.  The input
+    transactions may contain additional fields which repay will ignore:
 
+        {"date":"2018-02-17","from":"Bill","to":"Fred","amt":7200,"reason":"Paid for lunch"}
+        {"date":"2018-02-19","from":"Andy","to":"Alex","amt":7300,"reason":"Bet on the football"}
+        {"date":"2018-02-19","from":"Fred","to":"Mike","amt":7800,"reason":"Undisclosed"}
+        {"date":"2018-02-20","from":"Bill","to":"Fred","amt":9300,"reason":"Paid delivery man"}
 
-Licence
--------
+    The output will still only contain "from", "to", and "amt", however.
 
-Licensed under either of the following, at your option:
+    Note that all amounts must be integers - "amt: 2.50" will cause an error -
+    so you'll probably want to record all amounts in a small currency like
+    cents or pence or yen.
 
- * Apache Licence 2.0 (see LICENSE-APACHE or http://www.apache.org/licenses/LICENSE-2.0)
- * MIT licence (see LICENSE-MIT or http://opensource.org/licenses/MIT)
+LICENCE
 
-Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in the work by you, as defined in the Apache-2.0 license, shall
-be dual licensed as above, without any additional terms or conditions.
+    Licensed under either of the following, at your option:
+
+     * Apache Licence 2.0 (see LICENSE-APACHE or http://www.apache.org/licenses/LICENSE-2.0)
+     * MIT licence (see LICENSE-MIT or http://opensource.org/licenses/MIT)
+
+    Unless you explicitly state otherwise, any contribution intentionally
+    submitted for inclusion in the work by you, as defined in the Apache-2.0
+    license, shall be dual licensed as above, without any additional terms or
+    conditions.
