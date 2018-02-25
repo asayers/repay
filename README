@@ -47,6 +47,23 @@ INPUT FORMAT
     so you'll probably want to record all amounts in a small currency like
     cents or pence or yen.
 
+PERFORMANCE CONSIDERATIONS
+
+    The time taken to parse the ledger is linear in its length.  On my machine,
+    a million entries takes ~30s to parse.  If this becomes a problem, you
+    might consider compacting your ledger.  (You can do this by running repay,
+    negating all the amounts, and using this as the start of your new ledger.)
+
+    In exact mode, solving time scales exponentially with the number of people
+    involved.  Things can get bad very quickly: on my machine, a simple ledger
+    mentioning 100 people takes more than 20 minutes to solve.  If you have
+    lots of people with interconnected debts, you're stuck using approximate
+    mode.
+
+    In approximate mode, solving time scales with the total amount of debt (ie.
+    the abs-sum of everyone's balances).  This shoudn't be a problem in
+    practice.
+
 LICENCE
 
     Licensed under either of the following, at your option:
