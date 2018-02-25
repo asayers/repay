@@ -5,24 +5,24 @@
     Repay is a simple tool which computes the most efficient way for everyone
     to repay their debts.  You feed it a list of historical transactions:
 
-        {"from":"Bill","to":"Fred","amt":7200}
-        {"from":"Andy","to":"Alex","amt":7300}
-        {"from":"Fred","to":"Mike","amt":7800}
-        {"from":"Fred","to":"Mike","amt":4500}
-        {"from":"Mike","to":"Alex","amt":5600}
-        {"from":"Bill","to":"Fred","amt":9300}
-        {"from":"Mike","to":"Andy","amt":6100}
-        {"from":"Alex","to":"Bill","amt":2400}
-        {"from":"Mike","to":"Bill","amt":6400}
-        {"from":"Bill","to":"Andy","amt":9300}
+        { "from":"Jane", "to":"Fred", "amt":7200 }
+        { "from":"Rémy", "to":"Alex", "amt":7300 }
+        { "from":"Fred", "to":"Mike", "amt":7800 }
+        { "from":"Fred", "to":"Mike", "amt":4500 }
+        { "from":"Mike", "to":"Alex", "amt":5600 }
+        { "from":"Jane", "to":"Fred", "amt":9300 }
+        { "from":"Mike", "to":"Rémy", "amt":6100 }
+        { "from":"Alex", "to":"Jane", "amt":2400 }
+        { "from":"Mike", "to":"Jane", "amt":6400 }
+        { "from":"Jane", "to":"Rémy", "amt":9300 }
 
     And it spits out a minimal list of transactions which will make everyone
     square:
 
-        {"from":"Fred","to":"Mike","amt":4200}
-        {"from":"Andy","to":"Bill","amt":8100}
-        {"from":"Alex","to":"Mike","amt":1600}
-        {"from":"Alex","to":"Bill","amt":8900}
+        { "from":"Fred", "to":"Mike", "amt":4200 }
+        { "from":"Rémy", "to":"Jane", "amt":8100 }
+        { "from":"Alex", "to":"Mike", "amt":1600 }
+        { "from":"Alex", "to":"Jane", "amt":8900 }
 
 USAGE
 
@@ -33,13 +33,13 @@ USAGE
 
 INPUT FORMAT
 
-    As you can see, transations are newline-delimited JSON objects.  The input
+    As you can see, transactions are newline-delimited JSON objects.  The input
     transactions may contain additional fields which repay will ignore:
 
-        {"date":"2018-02-17","from":"Bill","to":"Fred","amt":7200,"reason":"Paid for lunch"}
-        {"date":"2018-02-19","from":"Andy","to":"Alex","amt":7300,"reason":"Bet on the football"}
-        {"date":"2018-02-19","from":"Fred","to":"Mike","amt":7800,"reason":"Undisclosed"}
-        {"date":"2018-02-20","from":"Bill","to":"Fred","amt":9300,"reason":"Paid delivery man"}
+        { "date":"2018-02-17", "from":"Jane", "to":"Fred", "amt":7200, "reason":"Paid for lunch" }
+        { "date":"2018-02-19", "from":"Rémy", "to":"Alex", "amt":7300, "reason":"Bet on the football" }
+        { "date":"2018-02-19", "from":"Fred", "to":"Mike", "amt":7800, "reason":"Undisclosed" }
+        { "date":"2018-02-20", "from":"Jane", "to":"Fred", "amt":9300, "reason":"Paid delivery man" }
 
     The output will still only contain "from", "to", and "amt", however.
 
@@ -61,7 +61,7 @@ PERFORMANCE CONSIDERATIONS
     mode.
 
     In approximate mode, solving time scales with the total amount of debt (ie.
-    the abs-sum of everyone's balances).  This shoudn't be a problem in
+    the abs-sum of everyone's balances).  This shouldn't be a problem in
     practice.
 
 LICENCE
