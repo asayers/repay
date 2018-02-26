@@ -31,35 +31,18 @@ fn main() {
     };
     env_logger::Builder::new().filter(None, log_level).init();
 
+    // Step 1: Parse the ledger (JSON)
     let ledger_path = opts.value_of("PATH").unwrap();
     let ledger_file = File::open(ledger_path).unwrap();
     let ledger_iter = serde_json::Deserializer::from_reader(ledger_file)
         .into_iter().map(|x| x.expect("Deserialise line"));
 
-    if opts.is_present("x") {
-        for p in compute_repayments_exact(ledger_iter) {
-            println!("{}", serde_json::to_string(&p).unwrap());
-        }
-    } else {
-        for p in compute_repayments_approx(ledger_iter) {
-            println!("{}", serde_json::to_string(&p).unwrap());
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Transfer {
-    from: String,
-    to: String,
-    amt: isize,  // TODO: Change to f64, multiply by 100 for approx
-}
-
-fn compute_repayments_exact<I: IntoIterator<Item = Transfer>>(ledger: I) -> Vec<Transfer> {
-    // Step 1: Compute everyone's balances (starting from 0)
+    // Step 2: Compute everyone's balances (starting from 0)
     info!("Reading ledger...");
     let mut n = 0;
     let mut balances = BTreeMap::new();
-    for transfer in ledger {
+    for transfer in ledger_iter {
+        let transfer: Transfer<String> = transfer;  // FIXME: dumb
         {
         let from = balances.entry(transfer.from).or_insert(0);
         *from -= transfer.amt;
@@ -71,40 +54,60 @@ fn compute_repayments_exact<I: IntoIterator<Item = Transfer>>(ledger: I) -> Vec<
     info!("Done! Read {} entries", n);
     debug!("{:?}", balances);
 
-    // Step 2: Order people from smallest to largest absolute balance
-    // TODO: Use a priority search queue in step 1, ie. a heap which lets you modify priorities.
-    let mut balances: Vec<(String, isize)> = balances.into_iter().collect();
-    balances.sort_unstable_by_key(|&(_, x)| x.abs());
-
-    let mut best = (usize::max_value(), Stack::new());
-    let mut balance_refs: Vec<(&str, isize)> = Vec::new();
-    for &(ref s, x) in balances.iter() {
-        balance_refs.push((&s, x));
+    if opts.is_present("x") {
+        for p in compute_repayments_exact(balances) {
+            println!("{}", serde_json::to_string(&p).unwrap());
+        }
+    } else {
+        for p in compute_repayments_approx(balances) {
+            println!("{}", serde_json::to_string(&p).unwrap());
+        }
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Transfer<T> {
+    from: T,
+    to: T,
+    amt: isize,  // TODO: Change to f64, multiply by 100 for approx
+}
+
+impl<T> Transfer<T> {
+    fn normalise(&mut self) {
+        if self.amt < 0 {
+            ::std::mem::swap(&mut self.from, &mut self.to);
+            self.amt = -self.amt;
+        }
+    }
+}
+
+fn compute_repayments_exact(balances: BTreeMap<String, isize>) -> Vec<Transfer<String>> {
+    // Step 3: Order people from smallest to largest absolute balance
+    let mut best = (usize::max_value(), Stack::new());
+
+    let mut balance_refs: Vec<(&str, isize)> = Vec::new();
+    for (ref s, x) in balances.iter() {
+        balance_refs.push((&s, *x));
+    }
+    balance_refs.sort_unstable_by_key(|&(_, x)| x.abs());
+
     search_tree(&mut best, Stack::new(), &balance_refs);
 
     let mut ret = vec![];
     for rc in best.1.iter() {
-        let edge = rc.1;
-        if edge.2 > 0 {
-            ret.push(Transfer {
-                from: edge.0.to_owned(),
-                to: edge.1.to_owned(),
-                amt: edge.2,
-            });
-        } else {
-            ret.push(Transfer {
-                from: edge.1.to_owned(),
-                to: edge.0.to_owned(),
-                amt: -edge.2,
-            });
-        }
+        let mut transfer = Transfer {
+            from: (*rc).1.from.to_owned(),
+            to: (*rc).1.to.to_owned(),
+            amt: (*rc).1.amt,
+        };
+        transfer.normalise();
+        ret.push(transfer);
     }
     ret
 }
 
 // TODO: Incremental deepening, starting at max{m,n}
-fn search_tree<'a, 'b>(best: &'b mut (usize, Stack<(&'a str, &'a str, isize)>), stack: Stack<(&'a str, &'a str, isize)>, remaining: &[(&'a str, isize)]) {
+fn search_tree<'a, 'b>(best: &'b mut (usize, Stack<Transfer<&'a str>>), stack: Stack<Transfer<&'a str>>, remaining: &[(&'a str, isize)]) {
     match remaining.split_first() {
         None => {
             debug!("LEAF!");
@@ -127,30 +130,19 @@ fn search_tree<'a, 'b>(best: &'b mut (usize, Stack<(&'a str, &'a str, isize)>), 
                     next.remove(i);
                 }
                 next.sort_unstable_by_key(|&(_, x)| x.abs());
-                search_tree(best, stack.push((head.0, x.0, head.1)), &next)
+                let t = Transfer {
+                    from: head.0,
+                    to: x.0,
+                    amt: head.1,
+                };
+                search_tree(best, stack.push(t), &next);
             }
             assert!(matches);
         }
     }
 }
 
-fn compute_repayments_approx<I: IntoIterator<Item = Transfer>>(ledger: I) -> Vec<Transfer> {
-    // Step 1: Compute everyone's balances (starting from 0)
-    info!("Reading ledger...");
-    let mut n = 0;
-    let mut balances = BTreeMap::new();
-    for transfer in ledger {
-        {
-        let from = balances.entry(transfer.from).or_insert(0);
-        *from -= transfer.amt as isize;
-        }
-        let to = balances.entry(transfer.to).or_insert(0);
-        *to += transfer.amt as isize;
-        n += 1;
-    }
-    info!("Done! Read {} entries", n);
-    debug!("{:?}", balances);
-
+fn compute_repayments_approx(balances: BTreeMap<String, isize>) -> Vec<Transfer<String>> {
     // (Step 1.5: Set up a fully-connected graph with one node per person)
     info!("Setting up graph...");
     let mut graph = GraphBuilder::new();
