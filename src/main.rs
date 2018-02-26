@@ -51,7 +51,7 @@ fn main() {
 struct Transfer {
     from: String,
     to: String,
-    amt: usize,
+    amt: isize,  // TODO: Change to f64, multiply by 100 for approx
 }
 
 fn compute_repayments_exact<I: IntoIterator<Item = Transfer>>(ledger: I) -> Vec<Transfer> {
@@ -62,10 +62,10 @@ fn compute_repayments_exact<I: IntoIterator<Item = Transfer>>(ledger: I) -> Vec<
     for transfer in ledger {
         {
         let from = balances.entry(transfer.from).or_insert(0);
-        *from -= transfer.amt as isize;
+        *from -= transfer.amt;
         }
         let to = balances.entry(transfer.to).or_insert(0);
-        *to += transfer.amt as isize;
+        *to += transfer.amt;
         n += 1;
     }
     info!("Done! Read {} entries", n);
@@ -74,14 +74,14 @@ fn compute_repayments_exact<I: IntoIterator<Item = Transfer>>(ledger: I) -> Vec<
     // Step 2: Order people from smallest to largest absolute balance
     // TODO: Use a priority search queue in step 1, ie. a heap which lets you modify priorities.
     let mut balances: Vec<(String, isize)> = balances.into_iter().collect();
-    balances.sort_unstable_by_key(|&(_, x)| -x.abs());
+    balances.sort_unstable_by_key(|&(_, x)| x.abs());
 
     let mut best = (usize::max_value(), Stack::new());
     let mut balance_refs: Vec<(&str, isize)> = Vec::new();
     for &(ref s, x) in balances.iter() {
         balance_refs.push((&s, x));
     }
-    search_tree(&mut best, Stack::new(), balance_refs);
+    search_tree(&mut best, Stack::new(), &balance_refs);
 
     let mut ret = vec![];
     for rc in best.1.iter() {
@@ -90,21 +90,22 @@ fn compute_repayments_exact<I: IntoIterator<Item = Transfer>>(ledger: I) -> Vec<
             ret.push(Transfer {
                 from: edge.0.to_owned(),
                 to: edge.1.to_owned(),
-                amt: edge.2 as usize,
+                amt: edge.2,
             });
         } else {
             ret.push(Transfer {
                 from: edge.1.to_owned(),
                 to: edge.0.to_owned(),
-                amt: -edge.2 as usize,
+                amt: -edge.2,
             });
         }
     }
     ret
 }
 
-fn search_tree<'a, 'b>(best: &'b mut (usize, Stack<(&'a str, &'a str, isize)>), stack: Stack<(&'a str, &'a str, isize)>, mut remaining: Vec<(&'a str, isize)>) {
-    match remaining.pop() {
+// TODO: Incremental deepening, starting at max{m,n}
+fn search_tree<'a, 'b>(best: &'b mut (usize, Stack<(&'a str, &'a str, isize)>), stack: Stack<(&'a str, &'a str, isize)>, remaining: &[(&'a str, isize)]) {
+    match remaining.split_first() {
         None => {
             debug!("LEAF!");
             if stack.len() < best.0 {
@@ -112,29 +113,23 @@ fn search_tree<'a, 'b>(best: &'b mut (usize, Stack<(&'a str, &'a str, isize)>), 
                 *best = (stack.len(), stack);
             }
         }
-        Some(head) => {
-            debug!(">> {}: smallest node: {:?}, ({:?})", stack.len(), head, remaining);
+        Some((head, tail)) => {
+            debug!(">> {}: smallest node: {:?}, ({:?})", stack.len(), head, tail);
             let mut matches = false;
-            for (x, i) in remaining.iter().zip(0..) {
+            // TODO: check for exact matches, skip other branches if there are any
+            for (x, i) in tail.iter().zip(0..) {
                 debug!("try eliminating with {:?}?", x);
                 if x.1.signum() == head.1.signum() { continue; }
-                if x.1.abs() < head.1.abs() { continue; }
                 matches = true;
-                let mut next = remaining.clone();
+                let mut next = Vec::from(tail);
                 next[i].1 += head.1;
                 if next[i].1 == 0 {
                     next.remove(i);
                 }
-                next.sort_unstable_by_key(|&(_, x)| -x.abs());
-                search_tree(best, stack.push((head.0, x.0, head.1)), next)
+                next.sort_unstable_by_key(|&(_, x)| x.abs());
+                search_tree(best, stack.push((head.0, x.0, head.1)), &next)
             }
-            if !matches {
-                debug!("LEAF!");
-                if stack.len() < best.0 {
-                    debug!("it's good!");
-                    *best = (stack.len(), stack);
-                }
-            }
+            assert!(matches);
         }
     }
 }
@@ -194,7 +189,7 @@ fn compute_repayments_approx<I: IntoIterator<Item = Transfer>>(ledger: I) -> Vec
                     repayments.push(Transfer {
                         from: a,
                         to: b,
-                        amt: amount as usize,
+                        amt: amount as isize,
                     });
                 }
             }
