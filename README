@@ -36,14 +36,19 @@ INPUT FORMAT
     As you can see, transactions are newline-delimited JSON objects.  The input
     transactions may contain additional fields which repay will ignore:
 
-        { "date":"2018-02-17", "from":"Jane", "to":"Fred", "amt":7200, "reason":"Paid for lunch" }
-        { "date":"2018-02-19", "from":"Rémy", "to":"Alex", "amt":7300, "reason":"Bet on football" }
-        { "date":"2018-02-19", "from":"Fred", "to":"Mike", "amt":7800, "reason":"Undisclosed" }
-        { "date":"2018-02-20", "from":"Jane", "to":"Fred", "amt":9300, "reason":"Delivery man" }
+        { "date":"2018-02-17", "from":"Jane", "to":"Fred", "amt":7200, "rsn":"Paid for lunch" }
+        { "date":"2018-02-19", "from":"Rémy", "to":"Alex", "amt":7300, "rsn":"Bet on football" }
+        { "date":"2018-02-19", "from":"Fred", "to":"Mike", "amt":7800, "rsn":"Undisclosed" }
+        { "date":"2018-02-20", "from":"Jane", "to":"Fred", "amt":9300, "rsn":"Delivery man" }
+        { "date":"2018-02-19", "from":"Alex", "to":"Rémy", "amt":7300, "rsn":"Settlement" }
 
-    The output will still only contain "from", "to", and "amt", however.
+    The output will still only contain "from", "to", and "amt", however.  The
+    overhead should be minimal, so feel free to go crazy:
 
-    Note that all amounts must be integers - "amt: 2.50" will cause an error -
+        { "from":"Mike", "to":"Jane", "amt":6400,
+          "sig":"RWS1l0sm+eG0IZ7/JZ7V3Ct584XleF33BQkIiXmHNHjHKWTBZprpVPeiLsCpkRFL1m0y3z7xFBkxnzoNVbTELwB932C1rdllJwQ=" }
+
+    Note that all amounts must be integers - "amt":2.50 will cause an error -
     so you'll probably want to record all amounts in a small currency like
     cents or pence or yen.
 
