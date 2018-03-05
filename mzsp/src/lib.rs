@@ -55,23 +55,31 @@ pub fn mzsp(values: &[isize]) -> Vec<Vec<isize>> {
 ///     }
 /// }
 /// ```
-pub struct MZSP {
+pub struct MZSP<'a> {
+    values: &'a [isize],
     memo: MemoTables,
     remainder: BitSet64,
 }
-impl MZSP {
+impl<'a> MZSP<'a> {
     /// Find a maximum zero-sum partitioning of the given values.
-    pub fn compute(values: &[isize]) -> MZSP {
+    pub fn compute(values: &'a[isize]) -> MZSP<'a> {
         MZSP {
+            values: values,
             memo: MemoTables::new(values),
             remainder: BitSet64::full_set(values.len() as u64),
         }
     }
 }
-impl Iterator for MZSP {
+impl<'a> Iterator for MZSP<'a> {
     type Item = BitSet64;
     fn next(&mut self) -> Option<BitSet64> {
-        let (n, partition) = self.memo.get_mzsp(self.remainder);
+        let (n, partition) = if self.remainder == BitSet64::full_set(self.values.len() as u64) {
+            let mut set = self.remainder.clone();
+            let max = set.take_max().unwrap();
+            max_zero_sum_partitions(&self.memo, self.values, set, max)
+        } else {
+            self.memo.get_mzsp(self.remainder)
+        };
         if n == 0 {
             None
         } else {
@@ -82,8 +90,8 @@ impl Iterator for MZSP {
 }
 
 struct MemoTables {
-    mzsp_table: Vec<(usize, BitSet64)>, // Table for max_zero_sum_partitions
-    sum_table: Vec<isize>,              // Table for subset_sum
+    mzsp_table: Vec<(usize, BitSet64)>,
+    sum_table: Vec<isize>,
 }
 
 impl MemoTables {
@@ -93,40 +101,46 @@ impl MemoTables {
             sum_table: vec![],
         };
 
-        // precompute sums
-        for set in BitSet64::enumerate(values.len() as u64) {
-            // subset_sum only reads the sums of subsets
-            let sum = subset_sum(&tables, values, set);
+        for mut set in BitSet64::enumerate(values.len() as u64 - 1) {
+            // Remove the max. element from `set`
+            let max = match set.take_max() { Some(x) => x, None => {
+                // Oh... `set` is empty.  Never mind!
+                tables.sum_table.push(0);
+                tables.mzsp_table.push((0, BitSet64::empty_set()));
+                continue;
+            }};
+            // Compute the sum of `set ∪ {max}` (we'll need this later)
+            let sum = values[max as usize] + tables.get_sum(set);
             tables.sum_table.push(sum);
-            // max_zero_sum_partitions reads the sums and mzsps of subsets
-            let x = max_zero_sum_partitions(&tables, values, set);
-            tables.mzsp_table.push(x);
+            // Compute the mzsp of `set ∪ {max}`
+            let mzsp = max_zero_sum_partitions(&tables, values, set, max);
+            tables.mzsp_table.push(mzsp);
         }
 
         tables
     }
 
-    /// Panics if `subset` includes an element not contained in `values`.
+    /// Panics if `subset.max() > values.len()`.
     fn get_mzsp(&self, subset: BitSet64) -> (usize, BitSet64) {
         self.mzsp_table[subset.0 as usize]
     }
 
-    /// Panics if `subset` includes an element not contained in `values`.
+    /// Panics if `subset.max() > values.len()`.
     fn get_sum(&self, subset: BitSet64) -> isize {
         self.sum_table[subset.0 as usize]
     }
 }
 
-/// Get the max. number of zero-sum partitions for the given set, and a bitset representing one of
-/// those partitions.
-fn max_zero_sum_partitions(memo: &MemoTables, values: &[isize], mut set: BitSet64) -> (usize, BitSet64) {
-    // Take the top element from the set
-    let x = match set.take_max() { Some(x) => x, None => return (0, BitSet64::empty_set()), };
-
+/// The maximum number of zero-sum partitions of `set ∪ {x}`, and a bitset representing the
+/// partition which contains x.
+fn max_zero_sum_partitions(memo: &MemoTables, values: &[isize], set: BitSet64, x: u64) -> (usize, BitSet64) {
     let mut best = (0, BitSet64::empty_set());
+    // For all subsets i of `set`, check whether i ∪ {x} forms a zero-sum partition.  If it does,
+    // check how many zero-sum partitions can be formed from set \ i.
+    let neg_val = -(values[x as usize]);
     for i in set.subsets() {
-        if memo.get_sum(i) == -(values[x as usize]) {
-            // This subset cancels out our element exactly!  i ∪ {x} forms a partition.
+        if memo.get_sum(i) == neg_val {
+            // This subset cancels out our element exactly!  i ∪ {x} forms a zsp.
             let remainder = set.minus(i);
             let c = memo.get_mzsp(remainder);
             // c is the maximum number of partitions which the remainder can form.
@@ -137,11 +151,4 @@ fn max_zero_sum_partitions(memo: &MemoTables, values: &[isize], mut set: BitSet6
     }
 
     (best.0, best.1.insert(x))
-}
-
-fn subset_sum(memo: &MemoTables, values: &[isize], mut subset: BitSet64) -> isize {
-    match subset.take_max() {
-        None => 0,
-        Some(max) => values[max as usize] + memo.get_sum(subset),
-    }
 }
