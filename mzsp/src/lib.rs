@@ -50,39 +50,54 @@ pub fn mzsp(values: &[isize]) -> Vec<Vec<isize>> {
 ///     }
 /// }
 /// ```
-pub struct MZSP<'a> {
-    values: &'a [isize],
+pub struct MZSP {
     memo: MemoTables,
     remainder: BitSet64,
+    next: BitSet64,
+    len: usize,
 }
-impl<'a> MZSP<'a> {
+impl MZSP {
     /// Find a maximum zero-sum partitioning of the given values.
-    pub fn compute(values: &'a[isize]) -> MZSP<'a> {
-        MZSP {
-            values: values,
-            memo: MemoTables::new(values),
-            remainder: BitSet64::full_set(values.len() as u64),
+    pub fn compute(values: &[isize]) -> MZSP {
+        let memo = MemoTables::new(values);
+        let mut set = BitSet64::full_set(values.len() as u64);
+        match set.take_max() {
+            None => {
+                MZSP {
+                    memo: memo,
+                    remainder: BitSet64::empty_set(),
+                    next: BitSet64::empty_set(),
+                    len: 0,
+                }
+            }
+            Some(max) => {
+                let (n, first_part) = max_zero_sum_partitions(&memo, values, set, max);
+                MZSP {
+                    memo: memo,
+                    remainder: set.minus(first_part),
+                    next: first_part,
+                    len: n,
+                }
+            }
         }
     }
 }
-impl<'a> Iterator for MZSP<'a> {
+impl Iterator for MZSP {
     type Item = BitSet64;
     fn next(&mut self) -> Option<BitSet64> {
-        let (n, partition) = if self.remainder == BitSet64::full_set(self.values.len() as u64) {
-            let mut set = self.remainder.clone();
-            let max = set.take_max().unwrap();
-            max_zero_sum_partitions(&self.memo, self.values, set, max)
-        } else {
-            self.memo.get_mzsp(self.remainder)
-        };
-        if n == 0 {
-            None
-        } else {
-            self.remainder = self.remainder.minus(partition);
-            Some(partition)
-        }
+        if self.len == 0 { return None; }
+        let (n, part) = self.memo.get_mzsp(self.remainder);
+        self.len = n;
+        self.remainder = self.remainder.minus(part);
+        let ret = self.next;
+        self.next = part;
+        Some(ret)
+    }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.len, Some(self.len))
     }
 }
+impl ExactSizeIterator for MZSP {}
 
 struct MemoTables {
     mzsp_table: Vec<(usize, BitSet64)>,
@@ -96,20 +111,22 @@ impl MemoTables {
             sum_table: vec![],
         };
 
-        for mut set in BitSet64::enumerate(values.len() as u64 - 1) {
-            // Remove the max. element from `set`
-            let max = match set.take_max() { Some(x) => x, None => {
-                // Oh... `set` is empty.  Never mind!
-                tables.sum_table.push(0);
-                tables.mzsp_table.push((0, BitSet64::empty_set()));
-                continue;
-            }};
-            // Compute the sum of `set ∪ {max}` (we'll need this later)
-            let sum = values[max as usize] + tables.get_sum(set);
-            tables.sum_table.push(sum);
-            // Compute the mzsp of `set ∪ {max}`
-            let mzsp = max_zero_sum_partitions(&tables, values, set, max);
-            tables.mzsp_table.push(mzsp);
+        if values.len() != 0 {
+            for mut set in BitSet64::enumerate(values.len() as u64 - 1) {
+                // Remove the max. element from `set`
+                let max = match set.take_max() { Some(x) => x, None => {
+                    // Oh... `set` is empty.  Never mind!
+                    tables.sum_table.push(0);
+                    tables.mzsp_table.push((0, BitSet64::empty_set()));
+                    continue;
+                }};
+                // Compute the sum of `set ∪ {max}` (we'll need this later)
+                let sum = values[max as usize] + tables.get_sum(set);
+                tables.sum_table.push(sum);
+                // Compute the mzsp of `set ∪ {max}`
+                let mzsp = max_zero_sum_partitions(&tables, values, set, max);
+                tables.mzsp_table.push(mzsp);
+            }
         }
 
         tables
@@ -146,4 +163,16 @@ fn max_zero_sum_partitions(memo: &MemoTables, values: &[isize], set: BitSet64, x
     }
 
     (best.0, best.1.insert(x))
+}
+
+#[test]
+fn test() {
+    let partitionable   = vec![10, -10, 15, -15];
+    let unpartitionable = vec![10, 20, -15, -15];
+
+    assert_eq!(MZSP::compute(&partitionable).len(),   2);
+    assert_eq!(MZSP::compute(&unpartitionable).len(), 1);
+
+    assert_eq!(mzsp(&partitionable),   vec![vec![15, -15], vec![10, -10]]);
+    assert_eq!(mzsp(&unpartitionable), vec![vec![10, 20, -15, -15]]);
 }
