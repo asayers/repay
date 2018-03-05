@@ -38,9 +38,9 @@ fn main() {
         .into_iter().map(|x| x.expect("Deserialise line"));
 
     // Step 2: Compute everyone's balances (starting from 0)
-    info!("Reading ledger...");
     let mut n = 0;
     let mut balances = BTreeMap::new();
+    let ts = ::std::time::Instant::now();
     for transfer in ledger_iter {
         let transfer: Transfer<String> = transfer;  // FIXME: dumb
         {
@@ -51,17 +51,25 @@ fn main() {
         *to += transfer.amt;
         n += 1;
     }
-    info!("Done! Read {} entries", n);
-    debug!("{:?}", balances);
+    let ts = ts.elapsed();
+    info!("Read {} entries from {} in {}.{:0>3}s", n, ledger_path, ts.as_secs(), ts.subsec_nanos()/1_000_000);
+    info!("{} unresolved balances, {} to repay", balances.len(), balances.iter().map(|(_,x)|x.abs()).sum::<isize>());
 
-    if opts.is_present("x") {
-        for p in compute_repayments_exact(balances) {
-            println!("{}", serde_json::to_string(&p).unwrap());
+    let ts = ::std::time::Instant::now();
+    let plan = if opts.is_present("x") {
+        if balances.len() > 20 {
+            warn!("This is gonna take a while... (consider using approximate mode)");
         }
+        compute_repayments_exact(balances)
     } else {
-        for p in compute_repayments_approx(balances) {
-            println!("{}", serde_json::to_string(&p).unwrap());
-        }
+        compute_repayments_approx(balances)
+    };
+    let ts = ts.elapsed();
+    info!("Computed repayment plan in {}.{:0>3}s", ts.as_secs(), ts.subsec_nanos()/1_000_000);
+    info!("{} repayments required", plan.len());
+    for mut p in plan {
+        p.normalise();
+        println!("{}", serde_json::to_string(&p).unwrap());
     }
 }
 
@@ -82,8 +90,8 @@ impl<T> Transfer<T> {
 }
 
 fn compute_repayments_exact(balances: BTreeMap<String, isize>) -> Vec<Transfer<String>> {
-    if balances.len() >=64 {
-        eprintln!("Exact mode doesn't support ledgers with more than 64 unsettled \
+    if balances.len() >= 64 {
+        error!("Exact mode doesn't support ledgers with more than 64 unsettled \
             balances.  Please use approximate mode instead.");
         ::std::process::exit(1);
     }
@@ -94,10 +102,9 @@ fn compute_repayments_exact(balances: BTreeMap<String, isize>) -> Vec<Transfer<S
         names.push(name);
         values.push(value);
     }
-    let ts = ::std::time::Instant::now();
     // Compute the largest set of zero-sum paritions
     let parts = MZSP::compute(&values);
-    eprintln!("Computed partitions in {:?}", ts.elapsed());
+    info!("Divided into {} partitions", parts.len());
     parts.flat_map(|partition| {
         let balances: Vec<(String,isize)> = partition.elements()
             .map(|idx| (names[idx as usize].clone(), values[idx as usize]))
@@ -114,7 +121,7 @@ fn compute_repayments_exact(balances: BTreeMap<String, isize>) -> Vec<Transfer<S
 /// nodes contains zero-sum subsets then we can do better.
 // TODO: Use a priority search queue
 fn construct_plan<T: Clone>(mut balances: Vec<(T, isize)>) -> Vec<Transfer<T>> {
-    assert_eq!(balances.iter().map(|x|x.1).sum::<isize>(), 0);
+    assert_eq!(balances.iter().map(|x|x.1).sum::<isize>(), 0, "balances must be zero-sum");
     let mut ret = vec![];
     loop {
         // Take the node with the smallest absolute value;  this will be our "from" node.
