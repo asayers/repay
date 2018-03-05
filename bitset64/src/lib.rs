@@ -1,5 +1,3 @@
-#![feature(conservative_impl_trait)]
-
 /*!
 A simple bitset stored in a single u64.
 
@@ -92,7 +90,7 @@ impl BitSet64 {
     /// Iterate over all possible sets where 0 < size <= n.  Equivalent to
     /// `BitSet64::full_set(n).subsets()`
     #[inline]
-    pub fn enumerate(n: u64) -> impl Iterator<Item=BitSet64> {
+    pub fn enumerate(n: u64) -> Sets {
         (0..(BitSet64::full_set(n).0 + 1)).map(BitSet64)
     }
 
@@ -125,6 +123,8 @@ impl BitSet64 {
         }
     }
 }
+
+pub type Sets = std::iter::Map<std::ops::Range<u64>, fn(u64) -> BitSet64>;
 
 pub struct Elements {
     set: BitSet64,
