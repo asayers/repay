@@ -51,9 +51,10 @@ fn main() {
         *to += transfer.amt;
         n += 1;
     }
+    let balances: Vec<(String, isize)> = balances.into_iter().filter(|&(_,x)| x != 0).collect();
     let ts = ts.elapsed();
     info!("Read {} entries from {} in {}.{:0>3}s", n, ledger_path, ts.as_secs(), ts.subsec_nanos()/1_000_000);
-    info!("{} unresolved balances, {} to repay", balances.len(), balances.iter().map(|(_,x)|x.abs()).sum::<isize>());
+    info!("{} unresolved balances, {} to repay", balances.len(), balances.iter().map(|&(_,x)|x.abs()).sum::<isize>());
 
     let ts = ::std::time::Instant::now();
     let plan = if opts.is_present("x") {
@@ -89,25 +90,21 @@ impl<T> Transfer<T> {
     }
 }
 
-fn compute_repayments_exact(balances: BTreeMap<String, isize>) -> Vec<Transfer<String>> {
+fn compute_repayments_exact(balances: Vec<(String, isize)>) -> Vec<Transfer<String>> {
     if balances.len() >= 64 {
         error!("Exact mode doesn't support ledgers with more than 64 unsettled \
             balances.  Please use approximate mode instead.");
         ::std::process::exit(1);
     }
     // Get the data into the right form (TODO: eliminate this)
-    let mut names = vec![];
-    let mut values = vec![];
-    for (name, value) in balances {
-        names.push(name);
-        values.push(value);
-    }
+    let values: Vec<isize> = balances.iter().map(|x|x.1).collect();
+
     // Compute the largest set of zero-sum paritions
     let parts = MZSP::compute(&values);
     info!("Divided into {} partitions", parts.len());
     parts.flat_map(|partition| {
         let balances: Vec<(String,isize)> = partition.elements()
-            .map(|idx| (names[idx as usize].clone(), values[idx as usize]))
+            .map(|idx| balances[idx as usize].clone())
             .collect();
         // For each partition, construct a plan.  We know that these partitions contain no zero-sum
         // subsets, so `construct_plan` is optimal.
@@ -129,7 +126,7 @@ fn construct_plan<T: Clone>(mut balances: Vec<(T, isize)>) -> Vec<Transfer<T>> {
         let (from_tag, from_val) = match balances.pop() { None => break, Some(x) => x };
         if from_val == 0 { continue; }
         // Find a node with the opposite sign (any will do);  this will be our "to" node.
-        let to = balances.iter_mut().find(|&&mut (_, x)| x.signum() != from_val.signum())
+        let to = balances.iter_mut().find(|x| x.1.signum() != from_val.signum())
             .expect("a node with opposite sign");  // The partition is zero-sum => it must exist
         let to_tag = to.0.clone();
         to.1 += from_val;  // Eliminate the "from" node with the "to" node.
@@ -140,12 +137,11 @@ fn construct_plan<T: Clone>(mut balances: Vec<(T, isize)>) -> Vec<Transfer<T>> {
     ret
 }
 
-fn compute_repayments_approx(balances: BTreeMap<String, isize>) -> Vec<Transfer<String>> {
+fn compute_repayments_approx(balances: Vec<(String, isize)>) -> Vec<Transfer<String>> {
     // (Step 1.5: Set up a fully-connected graph with one node per person)
-    info!("Setting up graph...");
     let mut graph = GraphBuilder::new();
-    for x in balances.keys() {
-        for y in balances.keys() {
+    for &(ref x,_) in balances.iter() {
+        for &(ref y,_) in balances.iter() {
             if x != y {
                 graph.add_edge(x.clone(), y.clone(), Capacity(1_000_000_000), Cost(1));
             }
@@ -153,20 +149,19 @@ fn compute_repayments_approx(balances: BTreeMap<String, isize>) -> Vec<Transfer<
     }
 
     // Step 2: Figure out how to shift money around to make all the balances go back to 0
-    info!("Computing minimum-cost flow...");
-    for (client, balance) in balances.iter() {
-        if *balance > 0 {
-            graph.add_edge(Vertex::Source, client.clone(), Capacity(balance.abs() as u32), Cost(0));
-        }
-        if *balance < 0 {
-            graph.add_edge(client.clone(), Vertex::Sink, Capacity(balance.abs() as u32), Cost(0));
+    for (client, balance) in balances {
+        if balance > 0 {
+            graph.add_edge(Vertex::Source, client, Capacity(balance.abs() as u32), Cost(0));
+        } else if balance < 0 {
+            graph.add_edge(client, Vertex::Sink, Capacity(balance.abs() as u32), Cost(0));
+        } else {
+            error!("Got a zero node");
         }
     }
     let (cost, paths) = graph.mcmf();
-    info!("Done! Total repayable: {}", cost);
+    info!("Total flow: {}", cost);
 
     // (Step 2.5: Wrangle these flows back into the shape of Tranfers)
-    info!("Assembling repayments...");
     let mut repayments = vec![];
     for mut p in paths {
         if p.flows.len() != 3 {
