@@ -1,17 +1,17 @@
+extern crate bitset64;
 extern crate clap;
 extern crate env_logger;
 #[macro_use] extern crate log;
 extern crate mcmf;
+extern crate mzsp;
 extern crate serde;
 #[macro_use] extern crate serde_derive;
 extern crate serde_json;
 
-mod stack;
-
 use mcmf::*;
+use mzsp::MZSP;
 use std::collections::BTreeMap;
 use std::fs::File;
-use stack::Stack;
 
 fn main() {
     // Parse the command-line arguments
@@ -82,64 +82,52 @@ impl<T> Transfer<T> {
 }
 
 fn compute_repayments_exact(balances: BTreeMap<String, isize>) -> Vec<Transfer<String>> {
-    // Step 3: Order people from smallest to largest absolute balance
-    let mut best = (usize::max_value(), Stack::new());
-
-    let mut balance_refs: Vec<(&str, isize)> = Vec::new();
-    for (ref s, x) in balances.iter() {
-        balance_refs.push((&s, *x));
+    if balances.len() >=64 {
+        eprintln!("Exact mode doesn't support ledgers with more than 64 unsettled \
+            balances.  Please use approximate mode instead.");
+        ::std::process::exit(1);
     }
-    balance_refs.sort_unstable_by_key(|&(_, x)| x.abs());
-
-    search_tree(&mut best, Stack::new(), &balance_refs);
-
-    let mut ret = vec![];
-    for rc in best.1.iter() {
-        let mut transfer = Transfer {
-            from: (*rc).1.from.to_owned(),
-            to: (*rc).1.to.to_owned(),
-            amt: (*rc).1.amt,
-        };
-        transfer.normalise();
-        ret.push(transfer);
+    // Get the data into the right form (TODO: eliminate this)
+    let mut names = vec![];
+    let mut values = vec![];
+    for (name, value) in balances {
+        names.push(name);
+        values.push(value);
     }
-    ret
+    // Compute the largest set of zero-sum paritions
+    MZSP::compute(&values).flat_map(|partition| {
+        let balances: Vec<(String,isize)> = partition.elements()
+            .map(|idx| (names[idx as usize].clone(), values[idx as usize]))
+            .collect();
+        // For each partition, construct a plan.  We know that these partitions contain no zero-sum
+        // subsets, so `construct_plan` is optimal.
+        construct_plan(balances)
+    }).collect()
 }
 
-// TODO: Incremental deepening, starting at max{m,n}
-fn search_tree<'a, 'b>(best: &'b mut (usize, Stack<Transfer<&'a str>>), stack: Stack<Transfer<&'a str>>, remaining: &[(&'a str, isize)]) {
-    match remaining.split_first() {
-        None => {
-            debug!("LEAF!");
-            if stack.len() < best.0 {
-                debug!("it's good!");
-                *best = (stack.len(), stack);
-            }
-        }
-        Some((head, tail)) => {
-            debug!(">> {}: smallest node: {:?}, ({:?})", stack.len(), head, tail);
-            let mut matches = false;
-            // TODO: check for exact matches, skip other branches if there are any
-            for (x, i) in tail.iter().zip(0..) {
-                debug!("try eliminating with {:?}?", x);
-                if x.1.signum() == head.1.signum() { continue; }
-                matches = true;
-                let mut next = Vec::from(tail);
-                next[i].1 += head.1;
-                if next[i].1 == 0 {
-                    next.remove(i);
-                }
-                next.sort_unstable_by_key(|&(_, x)| x.abs());
-                let t = Transfer {
-                    from: head.0,
-                    to: x.0,
-                    amt: head.1,
-                };
-                search_tree(best, stack.push(t), &next);
-            }
-            assert!(matches);
-        }
+/// Given a zero-sum set of nodes, construct a graph which moves all the value from the positive
+/// nodes to the negative nodes.  This function is *O(n)*, but the graph will be maximally
+/// inefficient, in the sense that it will always contain exactly *n* edges.  If the given set of
+/// nodes contains zero-sum subsets then we can do better.
+// TODO: Use a priority search queue
+fn construct_plan<T: Clone>(mut balances: Vec<(T, isize)>) -> Vec<Transfer<T>> {
+    assert_eq!(balances.iter().map(|x|x.1).sum::<isize>(), 0);
+    let mut ret = vec![];
+    loop {
+        // Take the node with the smallest absolute value;  this will be our "from" node.
+        balances.sort_unstable_by_key(|&(_, x)| -x.abs());
+        let (from_tag, from_val) = match balances.pop() { None => break, Some(x) => x };
+        if from_val == 0 { continue; }
+        // Find a node with the opposite sign (any will do);  this will be our "to" node.
+        let to = balances.iter_mut().find(|&&mut (_, x)| x.signum() != from_val.signum())
+            .expect("a node with opposite sign");  // The partition is zero-sum => it must exist
+        let to_tag = to.0.clone();
+        to.1 += from_val;  // Eliminate the "from" node with the "to" node.
+        // There's no need to remove zero-balance "to" nodes;  this will only occur for the very
+        // last node.
+        ret.push(Transfer { from: from_tag, to: to_tag, amt: from_val });
     }
+    ret
 }
 
 fn compute_repayments_approx(balances: BTreeMap<String, isize>) -> Vec<Transfer<String>> {
