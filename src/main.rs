@@ -94,8 +94,11 @@ fn compute_repayments_exact(balances: BTreeMap<String, isize>) -> Vec<Transfer<S
         names.push(name);
         values.push(value);
     }
+    let ts = ::std::time::Instant::now();
     // Compute the largest set of zero-sum paritions
-    MZSP::compute(&values).flat_map(|partition| {
+    let parts = MZSP::compute(&values);
+    eprintln!("Computed partitions in {:?}", ts.elapsed());
+    parts.flat_map(|partition| {
         let balances: Vec<(String,isize)> = partition.elements()
             .map(|idx| (names[idx as usize].clone(), values[idx as usize]))
             .collect();

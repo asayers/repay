@@ -22,11 +22,6 @@ function is a convenience function.
 extern crate bitset64;
 use bitset64::*;
 
-// For each element of the multiset, we try to match it with one of the other members.  If there's
-// a match, we eliminate both elements and return 1 + mzsp(remainder).  If there's no match, then
-// for every other member, we add the value of our node to it and compute mzsp for the resulting
-// multiset.
-
 /// Maximal zero-sum partitioning of a multiset.  This is a handy wrapper around `MZSP`.
 pub fn mzsp(values: &[isize]) -> Vec<Vec<isize>> {
     MZSP::compute(values).map(|partition|
@@ -142,10 +137,10 @@ fn max_zero_sum_partitions(memo: &MemoTables, values: &[isize], set: BitSet64, x
         if memo.get_sum(i) == neg_val {
             // This subset cancels out our element exactly!  i ∪ {x} forms a zsp.
             let remainder = set.minus(i);
-            let c = memo.get_mzsp(remainder);
-            // c is the maximum number of partitions which the remainder can form.
-            if c.0 >= best.0 {
-                best = (c.0 + 1, i);
+            let rem_mzsp = memo.get_mzsp(remainder);
+            // rem_mzsp is the maximum number of partitions which the remainder can form.
+            if rem_mzsp.0 >= best.0 {
+                best = (rem_mzsp.0 + 1, i);
             }
         }
     }

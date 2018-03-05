@@ -8,7 +8,7 @@ The downside of such a basic representation is, of course, that sets can only st
 store elements from 0..64 in a set, `BitSet64` is a very fast way to do it.
 */
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct BitSet64(pub u64);
 impl BitSet64 {
     const MAX_IDX: u64 = 63;
@@ -24,6 +24,7 @@ impl BitSet64 {
         BitSet64((1u64 << n) - 1)  // (2 ** n) - 1
     }
     /// Only the nth bit is set.  (1 instruction)
+    #[inline]
     pub fn singleton(x: u64) -> BitSet64 {
         assert!(x < 64);
         BitSet64((1u64 << x))
