@@ -59,11 +59,14 @@ fn main() {
 
     let ts = ::std::time::Instant::now();
     let plan = match (opts.is_present("x"), opts.is_present("a"), balances.len() <= 20) {
-        (true, _, true) => compute_repayments_exact(balances),
-        (true, _, false) => { warn!("This may take a while... (consider using approximate mode)"); compute_repayments_exact(balances) }
-        (_, true, _) => compute_repayments_approx(balances),
-        (_, _, true) => compute_repayments_exact(balances),
-        (_, _, false) => compute_repayments_approx(balances),
+        (true, true, _) => panic!("User specified exact mode *and* approximate mode!"),
+        (true, false, _) => compute_repayments_exact(balances),      // -x was specified
+        (false, true, _) => compute_repayments_approx(balances),     // -a was specified
+        (false, false, true) => compute_repayments_exact(balances),  // n is small
+        (false, false, false) => {                                   // n is big
+            warn!("The following solution may be approximate.  (Use '-x' to force exact mode)");
+            compute_repayments_approx(balances)
+        }
     };
     let ts = ts.elapsed();
     info!("Computed repayment plan in {}.{:0>3}s", ts.as_secs(), ts.subsec_nanos()/1_000_000);
