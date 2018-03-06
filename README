@@ -31,6 +31,12 @@ USAGE
         -x        Guarantees a minimal solution (see "Exact Mode", below)
         <PATH>    The ledger containing historical transactions
 
+INSTALLATION
+
+    Repay is written in Rust.  Install it using cargo:
+
+        cargo install --git https://github.com/asayers/repay.git
+
 INPUT FORMAT
 
     As you can see, transactions are newline-delimited JSON objects.  The input
