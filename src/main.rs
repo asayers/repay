@@ -18,7 +18,8 @@ fn main() {
     let opts = clap::App::new("debtor").version("1.0")
         .args_from_usage(
             "<PATH>         'The ledger containing historical transactions'
-             -x             'Guarantee an exact solution (may be slow)'
+             -a, --approx   'Guarantee a fast solution (may be suboptimal)'
+             -x, --exact    'Guarantee an exact solution (may be slow)'
              -v...          'Increase the level of verbosity'")
         .get_matches();
 
@@ -57,13 +58,12 @@ fn main() {
     info!("{} unresolved balances, {} to repay", balances.len(), balances.iter().map(|&(_,x)|x.abs()).sum::<isize>());
 
     let ts = ::std::time::Instant::now();
-    let plan = if opts.is_present("x") {
-        if balances.len() > 20 {
-            warn!("This is gonna take a while... (consider using approximate mode)");
-        }
-        compute_repayments_exact(balances)
-    } else {
-        compute_repayments_approx(balances)
+    let plan = match (opts.is_present("x"), opts.is_present("a"), balances.len() <= 20) {
+        (true, _, true) => compute_repayments_exact(balances),
+        (true, _, false) => { warn!("This may take a while... (consider using approximate mode)"); compute_repayments_exact(balances) }
+        (_, true, _) => compute_repayments_approx(balances),
+        (_, _, true) => compute_repayments_exact(balances),
+        (_, _, false) => compute_repayments_approx(balances),
     };
     let ts = ts.elapsed();
     info!("Computed repayment plan in {}.{:0>3}s", ts.as_secs(), ts.subsec_nanos()/1_000_000);
