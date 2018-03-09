@@ -115,20 +115,21 @@ EXACT MODE
 
     Why is it equivalent?  If you partition your original multiset into
     zero-sum subsets, you can independently draw a graph for each subset - a
-    graph containing at most (n-1) edges.  Therefore, if you can form m subsets
-    then you can bring the number of edges in the combined graph down to (n-m).
+    graph containing at most n-1 edges.  Therefore, if you can form m subsets
+    then you can bring the number of edges in the combined graph down to n-m.
 
-    Suppose there is a solution with (n-m) edges; then there must exist a
+    Suppose there is a solution with n-m edges; then there must exist a
     partitioning with m zero-sum subsets.  (TODO: prove)
 
     Therefore, if you find a MZSP, and for each partition you construct a
     flow-maximising graph, then the combined graph must be optimal.
-    Furthermore, given a zero-sum multiset, constructing a flow-maximising
-    graph with (n-1) edges is easy (and O(n)).
 
-    repay's implementation of MZSP is O(3^n).  Given that MZSP is NP-hard, I
-    don't expect we can do much better.  The algorithm we use is due to Akio
-    Takano.
+    Given a zero-sum multiset, a flow-maximising graph with n-1 edges can be
+    constructed in O(n).  This means that the real problem is finding the MZSP.
+
+    repay's implementation of MZSP is O(3^n).  This is painful, but given that
+    MZSP is NP-hard, I don't expect it's possible to do much better.  The
+    algorithm we use is due to Akio Takano.
 
     See also:
 
