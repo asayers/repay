@@ -58,7 +58,8 @@ fn main() {
     info!("{} unresolved balances, {} to repay", balances.len(), balances.iter().map(|&(_,x)|x.abs()).sum::<isize>());
 
     let ts = ::std::time::Instant::now();
-    let plan = match (opts.is_present("x"), opts.is_present("a"), balances.len() <= 20) {
+    println!("{:?}", opts);
+    let plan = match (opts.is_present("exact"), opts.is_present("approx"), balances.len() <= 20) {
         (true, true, _) => panic!("User specified exact mode *and* approximate mode!"),
         (true, false, _) => compute_repayments_exact(balances),      // -x was specified
         (false, true, _) => compute_repayments_approx(balances),     // -a was specified
