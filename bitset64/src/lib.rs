@@ -25,7 +25,7 @@ impl BitSet64 {
     #[inline]
     pub fn singleton(x: u64) -> BitSet64 {
         assert!(x < 64);
-        BitSet64((1u64 << x))
+        BitSet64(1u64 << x)
     }
 
     /// Set the `idx`th bit.  (2 instructions)
