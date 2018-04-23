@@ -26,9 +26,10 @@
 
 USAGE
 
-    repay [-x] <PATH>
+    repay [-x|-a] <PATH>
 
-        -x        Guarantees a minimal solution (see "Exact Mode", below)
+        -x        Guarantees a minimal solution (see EXACT MODE below)
+        -a        Use a faster algorithm (see APPROXIMATE MODE below)
         <PATH>    The ledger containing historical transactions
 
 INSTALLATION
