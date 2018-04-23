@@ -142,6 +142,15 @@ EXACT MODE
      * https://en.wikipedia.org/wiki/Subset_sum_problem
      * https://math.stackexchange.com/questions/339148/maximal-zero-sums-partition
 
+PRIOR ART
+
+    * Tom VERHOEFF
+      Settling Multiple Debts Efficiently: An Invitation to Computing Science
+      https://pdfs.semanticscholar.org/4f51/25bc51b61052370bbd73297f83d248545856.pdf
+
+    It seems to contain plenty of relevant investigation.  Verhoeff also
+    relates efficient repayment to the subset sum problem.
+
 LICENCE
 
     Licensed under either of the following, at your option:
