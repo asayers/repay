@@ -28,7 +28,7 @@ INSTALLATION
 
 Repay is written in Rust.  Install it using cargo:
 
-    cargo install --git https://github.com/asayers/repay.git
+    cargo install --git https://git.sr.ht/~asayers/repay
 
 USAGE
 -----
