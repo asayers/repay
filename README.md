@@ -1,6 +1,5 @@
-                         ===========================
-                         repay: efficient repayments
-                         ===========================
+repay: make efficient repayments
+================================
 
 Repay is a simple tool which computes the most efficient way for everyone
 to repay their debts.  You feed it a list of historical transactions:
@@ -39,7 +38,7 @@ USAGE
         <PATH>    The ledger containing historical transactions (see INPUT FORMAT)
         -x        Guarantees a minimal solution (see EXACT MODE)
         -a        Use a faster algorithm (see APPROXIMATE MODE)
-		-v        Verbose output
+        -v        Verbose output
 
 If neither -x nor -a are specified, repay tries to guess the best
 algorithm to use based on the ledger (see PERFORMANCE CONSIDERATIONS
